@@ -153,7 +153,7 @@ export default function EncuestaVivo() {
                     }}>📋</div>
                     <div>
                         <h1 style={{ margin: 0, fontSize: "clamp(16px, 2.5vw, 22px)", fontWeight: 800 }}>
-                            Encuesta en Vivo
+                            FUNDEL
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
                             <span style={{

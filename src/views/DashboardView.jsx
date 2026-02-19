@@ -164,7 +164,7 @@ export default function ResultadosVivo() {
                     }}>📊</div>
                     <div>
                         <h1 style={{ margin: 0, fontSize: "clamp(18px, 3vw, 26px)", fontWeight: 800, letterSpacing: -0.5 }}>
-                            Resultados en Vivo
+                            FUNDEL
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                             <Pulse />
