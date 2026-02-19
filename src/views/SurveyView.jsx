@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSurvey } from "../context/SurveyContext";
 
 const preguntas = [
     {
@@ -39,6 +40,7 @@ const preguntas = [
 const ACCENT = "#00F5C4";
 
 export default function EncuestaVivo() {
+    const { addResponse } = useSurvey();
     const [paso, setPaso] = useState(0);
     const [respuestas, setRespuestas] = useState({});
     const [completado, setCompletado] = useState(false);
@@ -53,6 +55,7 @@ export default function EncuestaVivo() {
             setDir(1);
             setPaso(p => p + 1);
         } else {
+            addResponse(respuestas);
             setCompletado(true);
         }
     };

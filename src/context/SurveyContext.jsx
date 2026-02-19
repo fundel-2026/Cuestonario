@@ -28,7 +28,7 @@ export const SurveyProvider = ({ children }) => {
         if (newValue) {
           const parsed = JSON.parse(newValue);
           setResponses(parsed);
-          
+
           // Notify about new response (simple check: if length increased)
           const oldLen = responses.length;
           if (parsed.length > oldLen) {
@@ -55,14 +55,20 @@ export const SurveyProvider = ({ children }) => {
     const updatedResponses = [...responses, responseWithTimestamp];
     setResponses(updatedResponses);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedResponses));
-    
-    // Dispatch a custom event for the current tab to update (storage event doesn't fire on same tab)
-    // Actually we already updated state, so we just need to notify if we want a toast in this tab too (optional)
-    // But usually only Dashboard needs the toast.
+  };
+
+  const resetResponses = () => {
+    setResponses([]);
+    localStorage.removeItem(STORAGE_KEY);
+    // Dispatch storage event manually for other tabs
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: STORAGE_KEY,
+      newValue: null
+    }));
   };
 
   return (
-    <SurveyContext.Provider value={{ responses, addResponse, newResponseNotification }}>
+    <SurveyContext.Provider value={{ responses, addResponse, resetResponses, newResponseNotification }}>
       {children}
     </SurveyContext.Provider>
   );

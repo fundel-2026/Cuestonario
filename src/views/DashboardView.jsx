@@ -1,34 +1,8 @@
-import { useState, useEffect } from "react";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar } from "recharts";
+import { useState, useEffect, useMemo } from "react";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { useSurvey } from "../context/SurveyContext";
 
 const COLORS = ["#00F5C4", "#FF6B6B", "#4CC9F0", "#F7B731", "#A29BFE", "#fd79a8"];
-
-const edadData = [
-    { name: "18-24", value: 32, fill: "#00F5C4" },
-    { name: "25-34", value: 45, fill: "#4CC9F0" },
-    { name: "35-44", value: 18, fill: "#A29BFE" },
-    { name: "45+", value: 5, fill: "#F7B731" },
-];
-
-const ciudadesData = [
-    { ciudad: "Ambato", respuestas: 1, fill: "#00F5C4" },
-    { ciudad: "Quito", respuestas: 0, fill: "#4CC9F0" },
-    { ciudad: "Guayaquil", respuestas: 0, fill: "#A29BFE" },
-];
-
-const ocupacionData = [
-    { name: "Empleado Privado", value: 1, fill: "#00F5C4" },
-    { name: "Independiente", value: 0, fill: "#4CC9F0" },
-    { name: "Estudiante", value: 0, fill: "#A29BFE" },
-    { name: "Público", value: 0, fill: "#F7B731" },
-];
-
-const interesesData = [
-    { name: "Tecnología", value: 0, fill: "#00F5C4" },
-    { name: "Salud", value: 0, fill: "#4CC9F0" },
-    { name: "Educación", value: 0, fill: "#A29BFE" },
-    { name: "Finanzas", value: 0, fill: "#F7B731" },
-];
 
 function Pulse() {
     return (
@@ -49,10 +23,6 @@ function Pulse() {
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
-        }
-        @keyframes countUp {
-          from { opacity: 0; transform: scale(0.5); }
-          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
         </span>
@@ -130,8 +100,48 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function ResultadosVivo() {
-    const [respuestas, setRespuestas] = useState(1);
+    const { responses, resetResponses } = useSurvey(); // Conexión real a datos
     const [tiempo, setTiempo] = useState(0);
+
+    // --- PROCESAMIENTO DE DATOS EN VIVO ---
+    const stats = useMemo(() => {
+        const total = responses.length;
+
+        const countBy = (field) => {
+            const counts = {};
+            responses.forEach(r => {
+                // Manejar arrays (intereses) y strings
+                const val = r[field];
+                if (Array.isArray(val)) {
+                    val.forEach(v => counts[v] = (counts[v] || 0) + 1);
+                } else if (val) {
+                    counts[val] = (counts[val] || 0) + 1;
+                }
+            });
+            return Object.entries(counts)
+                .map(([name, value]) => ({ name, value }))
+                .sort((a, b) => b.value - a.value);
+        };
+
+        const cities = countBy('ciudad');
+        const ages = countBy('edad');
+        const jobs = countBy('ocupacion');
+        const interests = countBy('intereses');
+
+        // Top Item Helpers
+        const getTop = (arr) => arr.length > 0 ? arr[0].name : "---";
+
+        // Formatear para gráficas
+        return {
+            total,
+            topCity: getTop(cities),
+            topJob: getTop(jobs),
+            ciudadesData: cities.slice(0, 5).map((c, i) => ({ ...c, fill: COLORS[i % COLORS.length], ciudad: c.name, respuestas: c.value })),
+            edadData: ages.map((a, i) => ({ ...a, fill: COLORS[i % COLORS.length] })),
+            ocupacionData: jobs.map((j, i) => ({ ...j, fill: COLORS[i % COLORS.length] })),
+            interesesData: interests.map((inItem, i) => ({ ...inItem, fill: COLORS[i % COLORS.length] })),
+        };
+    }, [responses]);
 
     useEffect(() => {
         const interval = setInterval(() => setTiempo(t => t + 1), 1000);
@@ -180,12 +190,6 @@ export default function ResultadosVivo() {
                     }}>
                         ⏱ {mins}:{secs}
                     </div>
-                    <div style={{
-                        background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: 10, padding: "8px 16px", fontSize: 13, color: "#aaa"
-                    }}>
-                        🔴 Sesión activa
-                    </div>
                 </div>
             </div>
 
@@ -195,9 +199,9 @@ export default function ResultadosVivo() {
                 gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                 gap: 16, marginBottom: 28
             }}>
-                <StatCard icon="📥" label="Total Respuestas" value={respuestas} accent="#00F5C4" delay={0.1} />
-                <StatCard icon="🌆" label="Top Ciudad" value="Ambato" accent="#4CC9F0" delay={0.15} />
-                <StatCard icon="💼" label="Top Ocupación" value="Emp. Privado" accent="#A29BFE" delay={0.2} />
+                <StatCard icon="📥" label="Total Respuestas" value={stats.total} accent="#00F5C4" delay={0.1} />
+                <StatCard icon="🌆" label="Top Ciudad" value={stats.topCity} accent="#4CC9F0" delay={0.15} />
+                <StatCard icon="💼" label="Top Ocupación" value={stats.topJob} accent="#A29BFE" delay={0.2} />
                 <StatCard icon="📈" label="Tasa Completación" value="100%" accent="#F7B731" delay={0.25} />
             </div>
 
@@ -210,17 +214,18 @@ export default function ResultadosVivo() {
                 {/* Ciudades */}
                 <SectionCard title="Top Ciudades" icon="🌆" delay={0.3}>
                     <ResponsiveContainer width="100%" height={180}>
-                        <BarChart data={ciudadesData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                        <BarChart data={stats.ciudadesData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                             <XAxis dataKey="ciudad" tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fill: "#888", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                             <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                             <Bar dataKey="respuestas" radius={[6, 6, 0, 0]}>
-                                {ciudadesData.map((entry, i) => (
+                                {stats.ciudadesData.map((entry, i) => (
                                     <Cell key={i} fill={entry.fill} fillOpacity={entry.respuestas > 0 ? 1 : 0.2} />
                                 ))}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
+                    {stats.ciudadesData.length === 0 && <p style={{ textAlign: "center", color: "#666", fontSize: 13 }}>Esperando datos...</p>}
                 </SectionCard>
 
                 {/* Rangos de Edad */}
@@ -229,13 +234,13 @@ export default function ResultadosVivo() {
                         <ResponsiveContainer width="50%" height={160}>
                             <PieChart>
                                 <Pie
-                                    data={edadData}
+                                    data={stats.edadData}
                                     cx="50%" cy="50%"
                                     innerRadius={45} outerRadius={70}
                                     paddingAngle={3} dataKey="value"
                                     stroke="none"
                                 >
-                                    {edadData.map((entry, i) => (
+                                    {stats.edadData.map((entry, i) => (
                                         <Cell key={i} fill={entry.fill} fillOpacity={0.85} />
                                     ))}
                                 </Pie>
@@ -243,13 +248,16 @@ export default function ResultadosVivo() {
                             </PieChart>
                         </ResponsiveContainer>
                         <div style={{ flex: 1, minWidth: 100 }}>
-                            {edadData.map((item, i) => (
+                            {stats.edadData.map((item, i) => (
                                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                                     <div style={{ width: 10, height: 10, borderRadius: 3, background: item.fill, flexShrink: 0 }} />
                                     <span style={{ fontSize: 12, color: "#aaa" }}>{item.name}</span>
-                                    <span style={{ fontSize: 12, color: "#fff", marginLeft: "auto", fontWeight: 600 }}>{item.value}%</span>
+                                    <span style={{ fontSize: 12, color: "#fff", marginLeft: "auto", fontWeight: 600 }}>
+                                        {Math.round((item.value / stats.total) * 100)}%
+                                    </span>
                                 </div>
                             ))}
+                            {stats.edadData.length === 0 && <p style={{ color: "#666", fontSize: 13 }}>Sin datos aún</p>}
                         </div>
                     </div>
                 </SectionCard>
@@ -257,7 +265,7 @@ export default function ResultadosVivo() {
                 {/* Ocupación */}
                 <SectionCard title="Ocupación" icon="💼" delay={0.4}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {ocupacionData.map((item, i) => (
+                        {stats.ocupacionData.map((item, i) => (
                             <div key={i}>
                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                                     <span style={{ fontSize: 13, color: "#ccc" }}>{item.name}</span>
@@ -267,7 +275,7 @@ export default function ResultadosVivo() {
                                     <div style={{
                                         height: "100%", borderRadius: 999,
                                         background: item.fill,
-                                        width: `${item.value > 0 ? Math.max(item.value * 100, 8) : 0}%`,
+                                        width: `${item.value > 0 ? Math.max((item.value / stats.total) * 100, 8) : 0}%`,
                                         opacity: item.value > 0 ? 1 : 0,
                                         transition: "width 1s ease",
                                         boxShadow: `0 0 8px ${item.fill}88`
@@ -275,26 +283,38 @@ export default function ResultadosVivo() {
                                 </div>
                             </div>
                         ))}
+                        {stats.ocupacionData.length === 0 && <p style={{ textAlign: "center", color: "#666", fontSize: 13 }}>Esperando datos...</p>}
                     </div>
                 </SectionCard>
 
                 {/* Intereses */}
                 <SectionCard title="Intereses" icon="📌" delay={0.45}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {interesesData.map((item, i) => (
+                        {stats.interesesData.map((item, i) => (
                             <div key={i}>
                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                                     <span style={{ fontSize: 13, color: "#ccc" }}>{item.name}</span>
-                                    <span style={{ fontSize: 12, color: "#666" }}>Esperando datos...</span>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: item.fill }}>{item.value}</span>
                                 </div>
                                 <div style={{
                                     height: 6, borderRadius: 999,
+                                    background: item.fill,
+                                    width: `${item.value > 0 ? Math.max((item.value / stats.total) * 100, 8) : 0}%`,
+                                    transition: "width 1s ease",
+                                }} />
+                            </div>
+                        ))}
+                        {stats.interesesData.length === 0 && (
+                            <div style={{ textAlign: 'center', padding: 20 }}>
+                                <p style={{ fontSize: 12, color: "#666" }}>Esperando datos...</p>
+                                <div style={{
+                                    height: 6, borderRadius: 999, marginTop: 10,
                                     background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.04) 75%)",
                                     backgroundSize: "200% 100%",
                                     animation: "shimmer 2s infinite"
                                 }} />
                             </div>
-                        ))}
+                        )}
                     </div>
                 </SectionCard>
             </div>
@@ -306,6 +326,35 @@ export default function ResultadosVivo() {
                 animation: "fadeIn 0.6s ease 0.6s both"
             }}>
                 Dashboard actualizado automáticamente · Última actualización hace <span style={{ color: "#00F5C4" }}>0s</span>
+                <div style={{ marginTop: 12 }}>
+                    <button
+                        onClick={() => {
+                            if (window.confirm("¿Estás seguro de que quieres borrar todos los datos?")) {
+                                resetResponses();
+                            }
+                        }}
+                        style={{
+                            background: "transparent",
+                            border: "1px solid #333",
+                            borderRadius: 6,
+                            color: "#666",
+                            padding: "4px 10px",
+                            fontSize: 11,
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                        }}
+                        onMouseEnter={e => {
+                            e.target.style.borderColor = "#FF6B6B";
+                            e.target.style.color = "#FF6B6B";
+                        }}
+                        onMouseLeave={e => {
+                            e.target.style.borderColor = "#333";
+                            e.target.style.color = "#666";
+                        }}
+                    >
+                        🗑️ Resetear Datos
+                    </button>
+                </div>
             </div>
         </div>
     );
